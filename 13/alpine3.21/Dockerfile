@@ -4,7 +4,7 @@
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
 
-FROM alpine:3.19
+FROM alpine:3.21
 
 # 70 is the standard uid/gid for "postgres" in Alpine
 # https://git.alpinelinux.org/aports/tree/main/postgresql/postgresql.pre-install?h=3.12-stable
@@ -52,13 +52,13 @@ ENV LANG en_US.utf8
 
 RUN mkdir /docker-entrypoint-initdb.d
 
-ENV PG_MAJOR 14
-ENV PG_VERSION 14.13
-ENV PG_SHA256 59aa3c4b495ab26a9ec69f3ad0a0228c51f0fe6facf3634dfad4d1197d613a56
+ENV PG_MAJOR 13
+ENV PG_VERSION 13.18
+ENV PG_SHA256 ceea92abee2a8c19408d278b68de6a78b6bd3dbb4fa2d653fa7ca745d666aab1
 
 ENV DOCKER_PG_LLVM_DEPS \
-		llvm15-dev \
-		clang15
+		llvm19-dev \
+		clang19
 
 RUN set -eux; \
 	\
@@ -99,8 +99,6 @@ RUN set -eux; \
 		zlib-dev \
 # https://www.postgresql.org/docs/10/static/release-10.html#id-1.11.6.9.5.13
 		icu-dev \
-# https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.5.5.3.7
-		lz4-dev \
 	; \
 	\
 	cd /usr/src/postgresql; \
@@ -114,10 +112,10 @@ RUN set -eux; \
 	wget -O config/config.guess 'https://git.savannah.gnu.org/cgit/config.git/plain/config.guess?id=7d3d27baf8107b630586c962c057e22149653deb'; \
 	wget -O config/config.sub 'https://git.savannah.gnu.org/cgit/config.git/plain/config.sub?id=7d3d27baf8107b630586c962c057e22149653deb'; \
 	\
-# https://git.alpinelinux.org/aports/tree/community/postgresql12/APKBUILD?h=3.18-stable&id=a470294e6d6ca7059e41c54769b7c3c26ec901d4#n158
-	export LLVM_CONFIG="/usr/lib/llvm15/bin/llvm-config"; \
-# https://git.alpinelinux.org/aports/tree/community/postgresql12/APKBUILD?h=3.18-stable&id=a470294e6d6ca7059e41c54769b7c3c26ec901d4#n163
-	export CLANG=clang-15; \
+# https://git.alpinelinux.org/aports/tree/community/postgresql15/APKBUILD?h=3.21-stable&id=40544ade947bec1798edb0f749f4e967e842624b#n172
+	export LLVM_CONFIG="/usr/lib/llvm19/bin/llvm-config"; \
+# https://git.alpinelinux.org/aports/tree/community/postgresql15/APKBUILD?h=3.21-stable&id=40544ade947bec1798edb0f749f4e967e842624b#n177
+	export CLANG=clang-19; \
 	\
 # configure options taken from:
 # https://anonscm.debian.org/cgit/pkg-postgresql/postgresql.git/tree/debian/rules?h=9.5
@@ -150,7 +148,6 @@ RUN set -eux; \
 		--with-libxslt \
 		--with-icu \
 		--with-llvm \
-		--with-lz4 \
 	; \
 	make -j "$(nproc)" world-bin; \
 	make install-world-bin; \
@@ -206,18 +203,12 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 # We set the default STOPSIGNAL to SIGINT, which corresponds to what PostgreSQL
 # calls "Fast Shutdown mode" wherein new connections are disallowed and any
 # in-progress transactions are aborted, allowing PostgreSQL to stop cleanly and
-# flush tables to disk, which is the best compromise available to avoid data
-# corruption.
+# flush tables to disk.
 #
-# Users who know their applications do not keep open long-lived idle connections
-# may way to use a value of SIGTERM instead, which corresponds to "Smart
-# Shutdown mode" in which any existing sessions are allowed to finish and the
-# server stops when all sessions are terminated.
-#
-# See https://www.postgresql.org/docs/12/server-shutdown.html for more details
+# See https://www.postgresql.org/docs/current/server-shutdown.html for more details
 # about available PostgreSQL server shutdown signals.
 #
-# See also https://www.postgresql.org/docs/12/server-start.html for further
+# See also https://www.postgresql.org/docs/current/server-start.html for further
 # justification of this as the default value, namely that the example (and
 # shipped) systemd service files use the "Fast Shutdown mode" for service
 # termination.
@@ -227,10 +218,10 @@ STOPSIGNAL SIGINT
 # An additional setting that is recommended for all users regardless of this
 # value is the runtime "--stop-timeout" (or your orchestrator/runtime's
 # equivalent) for controlling how long to wait between sending the defined
-# STOPSIGNAL and sending SIGKILL (which is likely to cause data corruption).
+# STOPSIGNAL and sending SIGKILL.
 #
 # The default in most runtimes (such as Docker) is 10 seconds, and the
-# documentation at https://www.postgresql.org/docs/12/server-start.html notes
+# documentation at https://www.postgresql.org/docs/current/server-start.html notes
 # that even 90 seconds may not be long enough in many instances.
 
 EXPOSE 5432
